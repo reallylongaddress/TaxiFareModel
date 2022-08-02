@@ -1,12 +1,14 @@
 import pandas as pd
+import s3fs
 
-AWS_BUCKET_PATH = "s3://wagon-public-datasets/taxi-fare-train.csv"
+#AWS_BUCKET_PATH = "s3://wagon-public-datasets/taxi-fare-train.csv"
 
 
 def get_data(nrows=10_000):
     '''returns a DataFrame with nrows from s3 bucket'''
-    df = pd.read_csv(AWS_BUCKET_PATH, nrows=nrows)
-    return df
+#    df = pd.read_csv(AWS_BUCKET_PATH, nrows=nrows)
+    df_train = pd.read_csv('./raw_data/train.csv', nrows=nrows)
+    return df_train
 
 
 def clean_data(df, test=False):

@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/dbd/Code/reallylongaddress/TaxiFareModel/mlruns/1/ad4bf7c1aa274d21a044f97c0672f7e0/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+name: ''
+run_id: ad4bf7c1aa274d21a044f97c0672f7e0
+run_uuid: ad4bf7c1aa274d21a044f97c0672f7e0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1659466443695
+status: 1
+tags: []
+user_id: unknown
