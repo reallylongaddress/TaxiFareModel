@@ -6,10 +6,11 @@ import s3fs
 
 def get_data(nrows=10_000):
     '''returns a DataFrame with nrows from s3 bucket'''
-#    df = pd.read_csv(AWS_BUCKET_PATH, nrows=nrows)
+    # df = pd.read_csv(AWS_BUCKET_PATH, nrows=nrows)
+
+    #was having issues with AWS, access data locally
     df_train = pd.read_csv('./raw_data/train.csv', nrows=nrows)
     return df_train
-
 
 def clean_data(df, test=False):
     df = df.dropna(how='any', axis='rows')
@@ -24,7 +25,6 @@ def clean_data(df, test=False):
     df = df[df["dropoff_latitude"].between(left=40, right=42)]
     df = df[df["dropoff_longitude"].between(left=-74, right=-72.9)]
     return df
-
 
 if __name__ == '__main__':
     df = get_data()

@@ -7,14 +7,12 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.model_selection import train_test_split
 
 from memoized_property import memoized_property
+import mlflow
+from mlflow.tracking import MlflowClient
 
-# from mlflow.tracking import MlflowClient
 from TaxiFareModel.data import get_data, clean_data
 from TaxiFareModel.utils import compute_rmse
 from TaxiFareModel.encoders import TimeFeaturesEncoder, DistanceTransformer
-
-import mlflow
-from mlflow.tracking import MlflowClient
 
 class Trainer():
 
@@ -29,32 +27,6 @@ class Trainer():
         self.pipeline = None
         self.X = X
         self.y = y
-
-        # self.mlflow = self.mlflow_run()
-        # print(f'self.mlflow: {type(self.mlflow)}')
-    # @memoized_property
-    # def mlflow_client(self):
-    #     self.mlflow.set_tracking_uri(self.MLFLOW_URI)
-    #     return MlflowClient()
-
-    # @memoized_property
-    # def mlflow_experiment_id(self):
-    #     try:
-    #         return self.mlflow_client.create_experiment(self.EXPERIMENT_NAME)
-    #     except BaseException:
-    #         return self.mlflow_client.get_experiment_by_name(self.EXPERIMENT_NAME).experiment_id
-
-    # @memoized_property
-    # def mlflow_run(self):
-    #     print('dbd----mlflow_run')
-    #     return self.mlflow_client.create_run(self.mlflow_experiment_id)
-
-    # def mlflow_log_param(self, key, value):
-    #     self.mlflow_client.log_param(self.mlflow_run.info.run_id, key, value)
-
-    # def mlflow_log_metric(self, key, value):
-    #     self.mlflow_client.log_metric(self.mlflow_run.info.run_id, key, value)
-
 
     @memoized_property
     def mlflow_client(self):
@@ -78,8 +50,6 @@ class Trainer():
     def mlflow_log_metric(self, key, value):
         self.mlflow_client.log_metric(self.mlflow_run.info.run_id, key, value)
 
-
-
     def set_pipeline(self):
         """defines the pipeline as a class attribute"""
         # create distance pipeline
@@ -100,7 +70,7 @@ class Trainer():
             ('time', time_pipe, ['pickup_datetime'])
         ], remainder="drop")
 
-        # Add the model of your choice to the pipelinej
+        # Add the model of your choice to the pipeline
         pipeline = Pipeline([
             ('preproc', preproc_pipe),
             ('linear_model', LinearRegression())
@@ -122,9 +92,12 @@ class Trainer():
         return rmse
 
 if __name__ == "__main__":
-    df = get_data(100)
+    #load data
+    df = get_data(10000)
+
     # clean data
     df = clean_data(df)
+
     # set X and y
     X = df.drop(columns=['fare_amount'])
     y = df['fare_amount']
@@ -135,6 +108,7 @@ if __name__ == "__main__":
     # train
     trainer = Trainer(X_train, y_train)
     trainer.run()
+
     # evaluate
     rmse = trainer.evaluate(X_test, y_test)
     print(f'rmse: {rmse}')
