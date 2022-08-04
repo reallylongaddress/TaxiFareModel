@@ -1,14 +1,17 @@
 import numpy as np
 
+import joblib
+import mlflow
+from mlflow.tracking import MlflowClient
+
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.linear_model import LinearRegression, Lasso, Ridge, SGDRegressor
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.model_selection import train_test_split
 
 from memoized_property import memoized_property
-import mlflow
-from mlflow.tracking import MlflowClient
 
 from TaxiFareModel.data import get_data, clean_data
 from TaxiFareModel.utils import compute_rmse
@@ -17,7 +20,7 @@ from TaxiFareModel.encoders import TimeFeaturesEncoder, DistanceTransformer
 class Trainer():
 
     MLFLOW_URI = "https://mlflow.lewagon.ai/"
-    EXPERIMENT_NAME = "[REMOTE] [reallylongaddress] TaxiFareModel + 0.0.1"
+    EXPERIMENT_NAME = "[REMOTE] [reallylongaddress] TaxiFareModel + 0.0.2"
 
     def __init__(self, X, y):
         """
@@ -50,7 +53,7 @@ class Trainer():
     def mlflow_log_metric(self, key, value):
         self.mlflow_client.log_metric(self.mlflow_run.info.run_id, key, value)
 
-    def set_pipeline(self):
+    def set_pipeline(self, estimator='LinearRegression'):
         """defines the pipeline as a class attribute"""
         # create distance pipeline
         dist_pipe = Pipeline([
@@ -71,17 +74,43 @@ class Trainer():
         ], remainder="drop")
 
         # Add the model of your choice to the pipeline
-        pipeline = Pipeline([
-            ('preproc', preproc_pipe),
-            ('linear_model', LinearRegression())
-        ])
-        self.mlflow_log_param('model', 'LinearRegression')
+        if estimator == 'LinearRegression':
+            pipeline = Pipeline([
+                ('preproc', preproc_pipe),
+                ('model', LinearRegression())
+            ])
+        elif estimator == 'KNN':
+            pipeline = Pipeline([
+                ('preproc', preproc_pipe),
+                ('model', KNeighborsRegressor())
+            ])
+        elif estimator == 'Lasso':
+            pipeline = Pipeline([
+                ('preproc', preproc_pipe),
+                ('model', Lasso())
+            ])
+        elif estimator == 'Ridge':
+            pipeline = Pipeline([
+                ('preproc', preproc_pipe),
+                ('model', Ridge())
+            ])
+        elif estimator == 'SGD':
+            pipeline = Pipeline([
+                ('preproc', preproc_pipe),
+                ('model', SGDRegressor())
+            ])
+
+        else:
+            raise Exception("unknown model type")
+
+        self.mlflow_log_param('model', estimator)
 
         return pipeline
 
-    def run(self):
+    def run(self, estimator = 'LinearRegression'):
         """set and train the pipeline"""
-        self.pipeline = self.set_pipeline()
+        #values LinearRegression, KNN, Lasso, Ridge, SGD
+        self.pipeline = self.set_pipeline(estimator=estimator)
         self.pipeline.fit(self.X, self.y)
 
     def evaluate(self, X_test, y_test):
@@ -91,9 +120,15 @@ class Trainer():
         self.mlflow_log_metric('rmse', rmse)
         return rmse
 
+    def save_model(self):
+        """ Save the trained model into a model.joblib file """
+        save_result = joblib.dump(self.pipeline, './model.joblib')
+        print(f'save_result: {save_result}')
+
 if __name__ == "__main__":
     #load data
     df = get_data(10000)
+    print(f'df.shape: {df.shape}')
 
     # clean data
     df = clean_data(df)
@@ -106,9 +141,15 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=.1)
 
     # train
-    trainer = Trainer(X_train, y_train)
-    trainer.run()
+    estimators = ['LinearRegression', 'KNN', 'Lasso', 'Ridge', 'SGD']
+    for estimator in estimators:
+        print(f'running: {estimator}')
+        trainer = Trainer(X_train, y_train)
+        trainer.run(estimator)
 
-    # evaluate
-    rmse = trainer.evaluate(X_test, y_test)
-    print(f'rmse: {rmse}')
+        # evaluate
+        rmse = trainer.evaluate(X_test, y_test)
+        print(f'rmse: {rmse}')
+
+        #save the model
+        trainer.save_model()
