@@ -1,6 +1,4 @@
-from re import sub
 import numpy as np
-import pandas as pd
 
 import joblib
 import mlflow
@@ -22,7 +20,7 @@ from TaxiFareModel.encoders import TimeFeaturesEncoder, DistanceTransformer
 class Trainer():
 
     MLFLOW_URI = "https://mlflow.lewagon.ai/"
-    EXPERIMENT_NAME = "[REMOTE] [reallylongaddress] TaxiFareModel + 0.0.8"
+    EXPERIMENT_NAME = "[REMOTE] [reallylongaddress] TaxiFareModel + 0.0.7"
 
     def __init__(self, X, y):
         """
@@ -88,7 +86,6 @@ class Trainer():
 
             # knn_n_neighbors = 5
             knn_n_neighbors = 10
-            # knn_n_neighbors = 15
 
             self.mlflow_log_param('knn_weights', knn_weight)
             self.mlflow_log_param('knn_n_neighbors', knn_n_neighbors)
@@ -133,24 +130,24 @@ class Trainer():
                                      scoring='neg_root_mean_squared_error')
 
         #-1 since we have to use the neg(_root_mean_squared_error) above
-        self.mlflow_log_metric('rmse_train_cv', np.mean(cv_results)*-1)
+        self.mlflow_log_metric('train_cv', np.mean(cv_results)*-1)
 
-    def evaluate(self, X_val, y_var):
-        self.mlflow_log_param('test_rows_data', len(X_val))
+    def evaluate(self, X_test, y_test):
+        self.mlflow_log_param('test_rows_data', len(X_test))
 
         """evaluates the pipeline on df_test and return the RMSE"""
-        y_pred = self.pipeline.predict(X_val)
-        rmse = compute_rmse(y_pred, y_var)
+        y_pred = self.pipeline.predict(X_test)
+        rmse = compute_rmse(y_pred, y_test)
         self.mlflow_log_metric('rmse_test', rmse)
 
         cv_results = cross_val_score(self.pipeline,
-                                     X_val, y_var,
+                                     X_test, y_test,
                                      cv=3,
                                      n_jobs=-1,
                                      scoring='neg_root_mean_squared_error')
 
         #-1 since we have to use the neg(_root_mean_squared_error) above
-        self.mlflow_log_metric('rmse_test_cv', np.mean(cv_results)*-1)
+        self.mlflow_log_metric('test_cv', np.mean(cv_results)*-1)
 
         return rmse
 
@@ -159,48 +156,33 @@ class Trainer():
         save_result = joblib.dump(self.pipeline, f'./model_{estimator}.joblib')
         print(f'save_result: {save_result}')
 
-    def predict(self, df_test):
-        y_pred = self.pipeline.predict(df_test)
-        y_pred = pd.concat([df_test["key"],pd.Series(y_pred)],axis=1)
-        y_pred.columns = ['key', 'fare_amount']
-
-        return y_pred
-
-    def save_submission(self, submission_data, estimator):
-        submission_data.to_csv(f'./submission_{estimator}.csv', index=False)
-
 if __name__ == "__main__":
     #load data
-    df_train, df_test = get_data(nrows=500_000)
+    df = get_data(nrows=30_000)
 
     # clean data
-    df_train = clean_data(df_train)
+    df = clean_data(df)
 
     #feature enginering
-    df_train = feature_engineering(df_train)
+    df = feature_engineering(df)
 
     # set X and y
-    X = df_train.drop(columns=['fare_amount'])
-    y = df_train['fare_amount']
+    X = df.drop(columns=['fare_amount'])
+    y = df['fare_amount']
 
     # hold out
-    X_train, X_val, y_train, y_val = train_test_split(X, y, train_size=.9)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=.9)
 
     # train
-    estimators = ['KNN']
+    estimators = ['LinearRegression', 'KNN', 'Lasso', 'Ridge', 'SGD']
     for estimator in estimators:
         print(f'running: {estimator}')
         trainer = Trainer(X_train, y_train)
         trainer.run(estimator)
 
         # evaluate
-        rmse = trainer.evaluate(X_val, y_val)
-        print(f'validate rmse: {rmse}')
-
-        y_pred = trainer.predict(df_test)
-
-        # print(y_pred_list)
-        trainer.save_submission(y_pred, estimator)
+        rmse = trainer.evaluate(X_test, y_test)
+        print(f'rmse: {rmse}')
 
         #save the model
         trainer.save_model(estimator)

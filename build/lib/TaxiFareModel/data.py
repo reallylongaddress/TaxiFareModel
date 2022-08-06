@@ -1,8 +1,8 @@
 import pandas as pd
 import s3fs
-from math import floor
 
 from TaxiFareModel.utils import calculate_direction, minkowski_distance_gps, haversine_distance
+from TaxiFareModel.utils import
 
 
 #AWS_BUCKET_PATH = "s3://wagon-public-datasets/taxi-fare-train.csv"
@@ -15,8 +15,7 @@ def get_data(nrows=10_000):
 
     #was having issues with AWS, access data locally
     df_train = pd.read_csv('./raw_data/train.csv', nrows=nrows)
-    df_test = pd.read_csv('./raw_data/test.csv')
-    return df_train, df_test
+    return df_train
 
 def clean_data(df):
     df = df.dropna(how='any', axis='rows')
@@ -86,11 +85,6 @@ def feature_engineering(df):
     #which pickups/dropoffs can be considered airport runs?
     df['is_airport'] = df.apply(lambda row: fe_is_airport(row, airport_radius), axis=1)
 
-    # $5 bucket size, more $ higher score
-    df['fb'] = [floor(num/5)+1 for num in df['fare_amount']]
-
-    #drop temporary and/or useless columns columns
-    print(df.columns)
     df.drop(columns=['jfk_lat', 'jfk_lng', 'lga_lat', 'lga_lng',
                      'pickup_distance_to_jfk', 'dropoff_distance_to_jfk',
                      'pickup_distance_to_lga', 'dropoff_distance_to_lga',
